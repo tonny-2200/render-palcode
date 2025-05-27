@@ -24,7 +24,7 @@ def predict():
 
     try:
         image = Image.open(io.BytesIO(file.read())).convert("RGB")
-        results = model(image)
+        results = model(image, device='cpu')
 
         detections = []
         for r in results:
