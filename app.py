@@ -6,23 +6,24 @@ import os
 
 app = Flask(__name__)
 
-# Load model once on startup
-model = YOLO('model.pt')
+# Load YOLOv8 model once
+model = YOLO("model.pt")
 
-@app.route('/predict', methods=['POST'])  # Changed route to '/predict' as you used before
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"message": "Blueprint Object Detection API"}), 200
+
+@app.route("/predict", methods=["POST"])
 def predict():
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
 
     file = request.files['image']
     if file.filename == '':
-        return jsonify({'error': 'Invalid file'}), 400
+        return jsonify({'error': 'Empty file name'}), 400
 
     try:
-        # Read and convert image to RGB
         image = Image.open(io.BytesIO(file.read())).convert("RGB")
-
-        # Run detection
         results = model(image)
 
         detections = []
@@ -33,7 +34,7 @@ def predict():
                 label = model.names[cls_id]
                 confidence = float(box.conf[0].item())
                 x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
-                bbox = [x1, y1, x2 - x1, y2 - y1]  # x, y, width, height
+                bbox = [x1, y1, x2 - x1, y2 - y1]
 
                 detections.append({
                     "label": label,
@@ -42,13 +43,15 @@ def predict():
                 })
 
         if not detections:
-            return jsonify({'message': 'No objects found'}), 200
+            return jsonify({"message": "No objects found"}), 200
 
-        return jsonify({"detections": detections})
+        return jsonify({"detections": detections}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # use PORT env var for deployment
-    app.run(host="0.0.0.0", port=port, debug=True)
+
+if __name__ == "__main__":
+    # Render uses PORT environment variable, default to 10000 if not set
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
