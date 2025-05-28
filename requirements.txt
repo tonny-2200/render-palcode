@@ -1,10 +1,13 @@
-Flask==2.3.3
+Flask==3.0.3
 gunicorn==23.0.0
 pillow==10.3.0
 psutil==7.0.0
 requests==2.32.3
-torch==2.0.1+cpu
-torchvision==0.15.2+cpu
+torch==2.7.0
+torchvision==0.22.0
 ultralytics==8.3.145
-opencv-python-headless==4.7.0.72  # replaces opencv-python
---find-links https://download.pytorch.org/whl/torch_stable.html
+matplotlib==3.10.3
+numpy==2.2.6
+opencv-python==4.11.0.86
+pandas==2.2.3
+scipy==1.15.3
