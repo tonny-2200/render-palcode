@@ -3,11 +3,12 @@ from ultralytics import YOLO
 from PIL import Image
 import io
 import os
+import torch
 
 app = Flask(__name__)
 
-# Load YOLOv8 model once
-model = YOLO("model.pt")
+# Load model on CPU once (do NOT pass device param in predict call)
+model = YOLO("model.pt")  
 
 @app.route("/", methods=["GET"])
 def index():
@@ -24,7 +25,8 @@ def predict():
 
     try:
         image = Image.open(io.BytesIO(file.read())).convert("RGB")
-        results = model(image, device='cpu')
+        with torch.no_grad():
+            results = model(image)  # no device param here, uses model device
 
         detections = []
         for r in results:
@@ -33,7 +35,7 @@ def predict():
                 cls_id = int(box.cls[0].item())
                 label = model.names[cls_id]
                 confidence = float(box.conf[0].item())
-                x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
                 bbox = [x1, y1, x2 - x1, y2 - y1]
 
                 detections.append({
@@ -52,6 +54,5 @@ def predict():
 
 
 if __name__ == "__main__":
-    # Render uses PORT environment variable, default to 10000 if not set
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
