@@ -4,17 +4,20 @@ from PIL import Image
 import io
 import os
 import torch
+import numpy as np
+import gc
 
 app = Flask(__name__)
 
-# Load model on CPU once (do NOT pass device param in predict call)
-model = YOLO("model.pt")  
+# Load model once, on CPU
+model = YOLO("model.pt")  # Assume small size model
+model.to('cpu')  # Ensure it's on CPU explicitly
 
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({"message": "Blueprint Object Detection API"}), 200
 
-@app.route("/predict", methods=["POST"])
+@app.route("/detect", methods=["POST"])
 def predict():
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
@@ -24,14 +27,25 @@ def predict():
         return jsonify({'error': 'Empty file name'}), 400
 
     try:
-        image = Image.open(io.BytesIO(file.read())).convert("RGB")
+        file_bytes = file.read()
+        with Image.open(io.BytesIO(file_bytes)) as img:
+            image = img.convert("RGB")
+            image_np = np.array(image)
+
+        # Run YOLOv8 prediction with safe flags
         with torch.no_grad():
-            results = model(image)  # no device param here, uses model device
+            results = model.predict(
+                image_np,
+                device='cpu',
+                save=False,
+                save_txt=False,
+                save_crop=False,
+                verbose=False
+            )
 
         detections = []
         for r in results:
-            boxes = r.boxes
-            for box in boxes:
+            for box in r.boxes:
                 cls_id = int(box.cls[0].item())
                 label = model.names[cls_id]
                 confidence = float(box.conf[0].item())
@@ -43,6 +57,11 @@ def predict():
                     "confidence": round(confidence, 2),
                     "bbox": [round(v, 2) for v in bbox]
                 })
+
+        # Free memory
+        del file_bytes, image, image_np, results
+        gc.collect()
+        torch.cuda.empty_cache()
 
         if not detections:
             return jsonify({"message": "No objects found"}), 200
